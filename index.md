@@ -1,2 +1,136 @@
-# memegenerator
-Online Meme Generator
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meme Generator</title>
+<link rel="icon" type="image/png" href="https://www.google.com/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Impact&family=Arial&display=swap" rel="stylesheet">
+
+<!-- SEO meta tags -->
+<meta name="description" content="Create memes online with the Meme Generator. Upload images, add stickers and text, and download your meme for free.">
+<meta name="keywords" content="meme generator, online meme maker, meme creator, stickers, funny images">
+<meta name="robots" content="index, follow">
+
+<style>
+  body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; margin:0; display:flex; flex-direction:column; align-items:center; min-height:100vh; }
+  .header { width:100%; background: linear-gradient(90deg, #2b5876, #4e4376); padding:20px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.3);}
+  .header h1 { margin:0; font-size:2.5em; font-family: 'Anton', Impact, Arial, sans-serif;}
+  .container { background:#2a2a2a; padding:20px; border-radius:12px; box-shadow:0 6px 12px rgba(0,0,0,0.5); margin:20px; width:calc(100%-40px); max-width:800px; box-sizing:border-box;}
+  #canvas { border:2px solid #444; border-radius:8px; margin:20px auto; display:block; max-width:100%; background:#fff; touch-action:none;}
+  input, select, button { width:100%; padding:12px; margin:8px 0; border:1px solid #555; border-radius:6px; background:#333; color:#fff; font-size:1em; box-sizing:border-box;}
+  input[type="color"]{ height:40px; padding:4px;}
+  .control-group { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;}
+  .control-group label { font-size:0.9em; color:#ccc;}
+  @media(max-width:600px){ .header h1{ font-size:1.8em;} .container{ padding:15px; margin:10px;} .control-group{ grid-template-columns:1fr; } }
+  .sticker-controls { margin-top:10px; }
+  .sticker-controls input:disabled { opacity:0.4; cursor:not-allowed;}
+  button:hover { background:#2b5876; transform:translateY(-2px);}
+  button:active { transform:translateY(0);}
+</style>
+</head>
+<body>
+<div class="header"><h1>Meme Generator</h1></div>
+<div class="container">
+<div class="control-group">
+  <div><label for="imageUpload">Upload Image</label><input type="file" id="imageUpload" accept="image/*"></div>
+  <div><label for="fontSelect">Font Style</label><select id="fontSelect"><option value="Anton">Anton</option><option value="Impact">Impact</option><option value="Arial">Arial</option></select></div>
+</div>
+<div class="control-group">
+  <div><label for="memeTextTop">Top Text</label><input type="text" id="memeTextTop" placeholder="Top Text"></div>
+  <div><label for="textColorTop">Top Text Color</label><input type="color" id="textColorTop" value="#ffffff"></div>
+</div>
+<div class="control-group">
+  <div><label for="memeTextBottom">Bottom Text</label><input type="text" id="memeTextBottom" placeholder="Bottom Text"></div>
+  <div><label for="textColorBottom">Bottom Text Color</label><input type="color" id="textColorBottom" value="#ffffff"></div>
+</div>
+<div><label for="stickerUpload">Add a Sticker</label><input type="file" id="stickerUpload" accept="image/*"></div>
+
+<div class="sticker-controls">
+  <label for="stickerSize">Sticker Size</label><input type="range" id="stickerSize" min="20" max="600" value="200" disabled>
+  <label for="stickerRotation">Sticker Rotation</label><input type="range" id="stickerRotation" min="0" max="360" value="0" disabled>
+</div>
+
+<canvas id="canvas" width="500" height="500"></canvas>
+
+<div class="control-group">
+  <button id="downloadBtn">Download Meme</button>
+  <button id="clearBtn">Clear Canvas</button>
+  <button id="undoBtn">Undo</button>
+  <button id="redoBtn">Redo</button>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+
+let currentFont='Anton', currentImage=null, textColorTop='#fff', textColorBottom='#fff';
+const stickers=[];
+let selectedSticker=null, pointerDown=false, dragOffsetX=0, dragOffsetY=0, dragStarted=false;
+const history=[]; let historyIndex=-1;
+
+function deg(d){return d*Math.PI/180;}
+function wrapText(text,x,y,maxW,lineH,baseline){if(!text)return; const words=text.split(' '); let line=''; const lines=[]; for(let i=0;i<words.length;i++){const testLine=line+words[i]+' '; if(ctx.measureText(testLine).width>maxW && i>0){lines.push(line); line=words[i]+' ';} else line=testLine;} lines.push(line); ctx.textBaseline=baseline; lines.forEach((l,i)=>{const offY=baseline==='top'?y+i*lineH:y-(lines.length-i-1)*lineH; ctx.fillText(l,x,offY); ctx.strokeText(l,x,offY);});}
+
+function drawM(showSel=true){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(currentImage) ctx.drawImage(currentImage,0,0,canvas.width,canvas.height);
+  else {ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);}
+  const fs=Math.floor(canvas.width/10);
+  ctx.font=`bold ${fs}px ${currentFont},Impact,Arial`;
+  ctx.lineWidth=Math.ceil(fs/20);
+  ctx.textAlign='center';
+  ctx.fillStyle=textColorTop;
+  ctx.strokeStyle='black';
+  wrapText(document.getElementById('memeTextTop').value.toUpperCase(),canvas.width/2,20,canvas.width-40,fs+5,'top');
+  ctx.fillStyle=textColorBottom;
+  wrapText(document.getElementById('memeTextBottom').value.toUpperCase(),canvas.width/2,canvas.height-20,canvas.width-40,fs+5,'bottom');
+  stickers.forEach(st=>{
+    ctx.save();
+    ctx.translate(st.x,st.y);
+    ctx.rotate(deg(st.rotation));
+    ctx.drawImage(st.img,-st.width/2,-st.height/2,st.width,st.height);
+    if(showSel && st===selectedSticker){ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(-st.width/2,-st.height/2,st.width,st.height);}
+    ctx.restore();
+  });
+}
+
+// Sticker functions
+function getStickerAt(x,y){for(let i=stickers.length-1;i>=0;i--){const st=stickers[i],dx=x-st.x,dy=y-st.y,cos=Math.cos(-deg(st.rotation)),sin=Math.sin(-deg(st.rotation)),lx=dx*cos-dy*sin,ly=dx*sin+dy*cos;if(lx>=-st.width/2&&lx<=st.width/2&&ly>=-st.height/2&&ly<=st.height/2) return st;} return null;}
+function showControls(st){const size=document.getElementById('stickerSize'); const rot=document.getElementById('stickerRotation'); if(st){size.disabled=false; rot.disabled=false; size.value=Math.round(st.width); rot.value=Math.round((st.rotation+360)%360);} else {size.disabled=true; rot.disabled=true;} pointerDown=false; dragStarted=false;}
+function getPoint(evt){const r=canvas.getBoundingClientRect();return{x:(evt.clientX-r.left)*(canvas.width/r.width),y:(evt.clientY-r.top)*(canvas.height/r.height)}}
+
+// History
+function saveHistory(){const state={img:currentImage, stickers:stickers.map(st=>({...st})), textTop:document.getElementById('memeTextTop').value, textBottom:document.getElementById('memeTextBottom').value, font:currentFont, colorTop:textColorTop, colorBottom:textColorBottom}; history.splice(historyIndex+1); history.push(state); historyIndex=history.length-1;}
+function loadHistory(idx){if(idx<0||idx>=history.length)return; const state=history[idx]; currentImage=state.img; stickers.length=0; state.stickers.forEach(st=>stickers.push({...st})); document.getElementById('memeTextTop').value=state.textTop; document.getElementById('memeTextBottom').value=state.textBottom; currentFont=state.font; textColorTop=state.colorTop; textColorBottom=state.colorBottom; selectedSticker=null; showControls(null); drawM();}
+
+// Pointer events
+canvas.addEventListener('pointerdown', evt=>{const p=getPoint(evt); const st=getStickerAt(p.x,p.y); if(st){selectedSticker=st; showControls(st); pointerDown=true; dragStarted=false;} else {selectedSticker=null; showControls(null); pointerDown=false; dragStarted=false;} drawM(); saveHistory(); });
+canvas.addEventListener('pointermove', evt=>{if(!pointerDown||!selectedSticker) return; const p=getPoint(evt); if(!dragStarted){dragOffsetX=p.x-selectedSticker.x; dragOffsetY=p.y-selectedSticker.y; dragStarted=true;} selectedSticker.x=p.x-dragOffsetX; selectedSticker.y=p.y-dragOffsetY; drawM();});
+canvas.addEventListener('pointerup', ()=>{pointerDown=false; dragStarted=false;});
+document.getElementById('stickerSize').addEventListener('input', e=>{if(selectedSticker){selectedSticker.width=parseInt(e.target.value);selectedSticker.height=selectedSticker.width*(selectedSticker.img.height/selectedSticker.img.width); drawM();}});
+document.getElementById('stickerRotation').addEventListener('input', e=>{if(selectedSticker){selectedSticker.rotation=parseInt(e.target.value);drawM();}});
+
+// Image upload
+document.getElementById('imageUpload').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return; const r=new FileReader(); const img=new Image(); r.onload=ev=>{img.src=ev.target.result; img.onload=()=>{canvas.width=Math.min(img.width,800); canvas.height=Math.min(img.height,800); currentImage=img; drawM(); saveHistory();};}; r.readAsDataURL(f);});
+document.getElementById('fontSelect').addEventListener('change',()=>{currentFont=document.getElementById('fontSelect').value; drawM(); saveHistory();});
+document.getElementById('memeTextTop').addEventListener('input',()=>{drawM(); saveHistory();});
+document.getElementById('memeTextBottom').addEventListener('input',()=>{drawM(); saveHistory();});
+document.getElementById('textColorTop').addEventListener('input', e=>{textColorTop=e.target.value; drawM(); saveHistory();});
+document.getElementById('textColorBottom').addEventListener('input', e=>{textColorBottom=e.target.value; drawM(); saveHistory();});
+
+// Sticker upload
+document.getElementById('stickerUpload').addEventListener('change', e=>{const f=e.target.files[0]; if(!f)return; const r=new FileReader(); const img=new Image(); r.onload=ev=>{img.src=ev.target.result; img.onload=()=>{stickers.push({img,x:canvas.width/2,y:canvas.height/2,width:Math.min(img.width/3,200),height:Math.min(img.height/3,200),rotation:0}); selectedSticker=stickers[stickers.length-1]; showControls(selectedSticker); drawM(); saveHistory();};}; r.readAsDataURL(f);});
+
+// Buttons
+document.getElementById('downloadBtn').addEventListener('click',()=>{const link=document.createElement('a'); link.download='meme.png'; link.href=canvas.toDataURL('image/png'); link.click();});
+document.getElementById('clearBtn').addEventListener('click',()=>{currentImage=null; stickers.length=0; document.getElementById('memeTextTop').value=''; document.getElementById('memeTextBottom').value=''; selectedSticker=null; showControls(null); drawM(); saveHistory();});
+document.getElementById('undoBtn').addEventListener('click',()=>{if(historyIndex>0){historyIndex--; loadHistory(historyIndex);}});
+document.getElementById('redoBtn').addEventListener('click',()=>{if(historyIndex<history.length-1){historyIndex++; loadHistory(historyIndex);}});
+
+// Initial draw
+drawM(); saveHistory();
+</script>
+</body>
+</html>
