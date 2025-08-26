@@ -56,8 +56,6 @@
 <div class="control-group">
   <button id="downloadBtn">Download Meme</button>
   <button id="clearBtn">Clear Canvas</button>
-  <button id="undoBtn">Undo</button>
-  <button id="redoBtn">Redo</button>
 </div>
 </div>
 
@@ -68,7 +66,6 @@ const ctx=canvas.getContext('2d');
 let currentFont='Anton', currentImage=null, textColorTop='#fff', textColorBottom='#fff';
 const stickers=[];
 let selectedSticker=null, pointerDown=false, dragOffsetX=0, dragOffsetY=0, dragStarted=false;
-const history=[]; let historyIndex=-1;
 
 function deg(d){return d*Math.PI/180;}
 function wrapText(text,x,y,maxW,lineH,baseline){if(!text)return; const words=text.split(' '); let line=''; const lines=[]; for(let i=0;i<words.length;i++){const testLine=line+words[i]+' '; if(ctx.measureText(testLine).width>maxW && i>0){lines.push(line); line=words[i]+' ';} else line=testLine;} lines.push(line); ctx.textBaseline=baseline; lines.forEach((l,i)=>{const offY=baseline==='top'?y+i*lineH:y-(lines.length-i-1)*lineH; ctx.fillText(l,x,offY); ctx.strokeText(l,x,offY);});}
@@ -101,36 +98,44 @@ function getStickerAt(x,y){for(let i=stickers.length-1;i>=0;i--){const st=sticke
 function showControls(st){const size=document.getElementById('stickerSize'); const rot=document.getElementById('stickerRotation'); if(st){size.disabled=false; rot.disabled=false; size.value=Math.round(st.width); rot.value=Math.round((st.rotation+360)%360);} else {size.disabled=true; rot.disabled=true;} pointerDown=false; dragStarted=false;}
 function getPoint(evt){const r=canvas.getBoundingClientRect();return{x:(evt.clientX-r.left)*(canvas.width/r.width),y:(evt.clientY-r.top)*(canvas.height/r.height)}}
 
-// History
-function saveHistory(){const state={img:currentImage, stickers:stickers.map(st=>({...st})), textTop:document.getElementById('memeTextTop').value, textBottom:document.getElementById('memeTextBottom').value, font:currentFont, colorTop:textColorTop, colorBottom:textColorBottom}; history.splice(historyIndex+1); history.push(state); historyIndex=history.length-1;}
-function loadHistory(idx){if(idx<0||idx>=history.length)return; const state=history[idx]; currentImage=state.img; stickers.length=0; state.stickers.forEach(st=>stickers.push({...st})); document.getElementById('memeTextTop').value=state.textTop; document.getElementById('memeTextBottom').value=state.textBottom; currentFont=state.font; textColorTop=state.colorTop; textColorBottom=state.colorBottom; selectedSticker=null; showControls(null); drawM();}
-
 // Pointer events
-canvas.addEventListener('pointerdown', evt=>{const p=getPoint(evt); const st=getStickerAt(p.x,p.y); if(st){selectedSticker=st; showControls(st); pointerDown=true; dragStarted=false;} else {selectedSticker=null; showControls(null); pointerDown=false; dragStarted=false;} drawM(); saveHistory(); });
+canvas.addEventListener('pointerdown', evt=>{const p=getPoint(evt); const st=getStickerAt(p.x,p.y); if(st){selectedSticker=st; showControls(st); pointerDown=true; dragStarted=false;} else {selectedSticker=null; showControls(null); pointerDown=false; dragStarted=false;} drawM(); });
 canvas.addEventListener('pointermove', evt=>{if(!pointerDown||!selectedSticker) return; const p=getPoint(evt); if(!dragStarted){dragOffsetX=p.x-selectedSticker.x; dragOffsetY=p.y-selectedSticker.y; dragStarted=true;} selectedSticker.x=p.x-dragOffsetX; selectedSticker.y=p.y-dragOffsetY; drawM();});
 canvas.addEventListener('pointerup', ()=>{pointerDown=false; dragStarted=false;});
 document.getElementById('stickerSize').addEventListener('input', e=>{if(selectedSticker){selectedSticker.width=parseInt(e.target.value);selectedSticker.height=selectedSticker.width*(selectedSticker.img.height/selectedSticker.img.width); drawM();}});
 document.getElementById('stickerRotation').addEventListener('input', e=>{if(selectedSticker){selectedSticker.rotation=parseInt(e.target.value);drawM();}});
 
 // Image upload
-document.getElementById('imageUpload').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return; const r=new FileReader(); const img=new Image(); r.onload=ev=>{img.src=ev.target.result; img.onload=()=>{canvas.width=Math.min(img.width,800); canvas.height=Math.min(img.height,800); currentImage=img; drawM(); saveHistory();};}; r.readAsDataURL(f);});
-document.getElementById('fontSelect').addEventListener('change',()=>{currentFont=document.getElementById('fontSelect').value; drawM(); saveHistory();});
-document.getElementById('memeTextTop').addEventListener('input',()=>{drawM(); saveHistory();});
-document.getElementById('memeTextBottom').addEventListener('input',()=>{drawM(); saveHistory();});
-document.getElementById('textColorTop').addEventListener('input', e=>{textColorTop=e.target.value; drawM(); saveHistory();});
-document.getElementById('textColorBottom').addEventListener('input', e=>{textColorBottom=e.target.value; drawM(); saveHistory();});
+document.getElementById('imageUpload').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return; const r=new FileReader(); const img=new Image(); r.onload=ev=>{img.src=ev.target.result; img.onload=()=>{canvas.width=Math.min(img.width,800); canvas.height=Math.min(img.height,800); currentImage=img; drawM();};}; r.readAsDataURL(f);});
+document.getElementById('fontSelect').addEventListener('change',()=>{currentFont=document.getElementById('fontSelect').value; drawM();});
+document.getElementById('memeTextTop').addEventListener('input',()=>{drawM();});
+document.getElementById('memeTextBottom').addEventListener('input',()=>{drawM();});
+document.getElementById('textColorTop').addEventListener('input', e=>{textColorTop=e.target.value; drawM();});
+document.getElementById('textColorBottom').addEventListener('input', e=>{textColorBottom=e.target.value; drawM();});
 
 // Sticker upload
-document.getElementById('stickerUpload').addEventListener('change', e=>{const f=e.target.files[0]; if(!f)return; const r=new FileReader(); const img=new Image(); r.onload=ev=>{img.src=ev.target.result; img.onload=()=>{stickers.push({img,x:canvas.width/2,y:canvas.height/2,width:Math.min(img.width/3,200),height:Math.min(img.height/3,200),rotation:0}); selectedSticker=stickers[stickers.length-1]; showControls(selectedSticker); drawM(); saveHistory();};}; r.readAsDataURL(f);});
+document.getElementById('stickerUpload').addEventListener('change', e=>{const f=e.target.files[0]; if(!f)return; const r=new FileReader(); const img=new Image(); r.onload=ev=>{img.src=ev.target.result; img.onload=()=>{stickers.push({img,x:canvas.width/2,y:canvas.height/2,width:Math.min(img.width/3,200),height:Math.min(img.height/3,200),rotation:0}); selectedSticker=stickers[stickers.length-1]; showControls(selectedSticker); drawM();};}; r.readAsDataURL(f);});
 
 // Buttons
 document.getElementById('downloadBtn').addEventListener('click',()=>{const link=document.createElement('a'); link.download='meme.png'; link.href=canvas.toDataURL('image/png'); link.click();});
-document.getElementById('clearBtn').addEventListener('click',()=>{currentImage=null; stickers.length=0; document.getElementById('memeTextTop').value=''; document.getElementById('memeTextBottom').value=''; selectedSticker=null; showControls(null); drawM(); saveHistory();});
-document.getElementById('undoBtn').addEventListener('click',()=>{if(historyIndex>0){historyIndex--; loadHistory(historyIndex);}});
-document.getElementById('redoBtn').addEventListener('click',()=>{if(historyIndex<history.length-1){historyIndex++; loadHistory(historyIndex);}});
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  currentImage=null;
+  stickers.length=0;
+  selectedSticker=null;
+  document.getElementById('memeTextTop').value='';
+  document.getElementById('memeTextBottom').value='';
+  document.getElementById('textColorTop').value='#ffffff';
+  document.getElementById('textColorBottom').value='#ffffff';
+  document.getElementById('fontSelect').value='Anton';
+  textColorTop='#fff';
+  textColorBottom='#fff';
+  currentFont='Anton';
+  showControls(null);
+  drawM();
+});
 
 // Initial draw
-drawM(); saveHistory();
+drawM();
 </script>
 </body>
 </html>
