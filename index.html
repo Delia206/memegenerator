@@ -3,93 +3,148 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meme Generator Online - Create Funny Memes Free</title>
-  <meta name="description" content="Create custom memes online with the Meme Generator. Upload images, add text, stickers, and download your meme for free. Simple, fast, and fun.">
+  <title>Meme Generator</title>
+  <meta name="description" content="Create memes online with the Meme Generator. Upload images, add stickers and text, and download your meme for free.">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png">
 
   <style>
     body {
-      margin: 0;
       font-family: Arial, sans-serif;
-      background-color: #0a0a0a;
+      background: #111;
       color: white;
       text-align: center;
+      margin: 0;
+      padding: 20px;
     }
-    .corner {
-      position: fixed;
-      width: 20px;
-      height: 20px;
-      background: linear-gradient(135deg, #d946ef, #ec4899, #06b6d4);
-    }
-    .corner.tl { top: 0; left: 0; border-bottom-right-radius: 10px; }
-    .corner.tr { top: 0; right: 0; border-bottom-left-radius: 10px; }
-    .corner.bl { bottom: 0; left: 0; border-top-right-radius: 10px; }
-    .corner.br { bottom: 0; right: 0; border-top-left-radius: 10px; }
     h1 {
-      font-size: 2.5rem;
-      margin-top: 50px;
-      background: linear-gradient(90deg, #d946ef, #ec4899, #06b6d4);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: #0ff;
+      text-shadow: 0 0 10px #0ff;
     }
-    .form-container {
-      margin-top: 30px;
+    canvas {
+      border: 2px solid #0ff;
+      margin-top: 20px;
+      background: white;
     }
-    input, button {
-      padding: 10px;
-      margin: 10px;
-      border-radius: 8px;
-      border: none;
-      font-size: 1rem;
+    .controls {
+      margin-top: 20px;
     }
     button {
-      background: linear-gradient(90deg, #d946ef, #ec4899, #06b6d4);
+      background: #0ff;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 5px;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: #06b6d4;
       color: white;
-      cursor: pointer;
     }
-    .samples {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 20px;
-      margin: 40px;
-    }
-    .samples img {
-      width: 100%;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .samples img:hover {
-      transform: scale(1.05);
+    input[type="file"], input[type="text"] {
+      margin: 10px;
     }
   </style>
 </head>
 <body>
-  <div class="corner tl"></div>
-  <div class="corner tr"></div>
-  <div class="corner bl"></div>
-  <div class="corner br"></div>
-
   <h1>Meme Generator</h1>
-  <p>Create custom memes online. Upload images, add text, stickers, and download your meme for free!</p>
+  <p>Upload an image, add stickers and text, then download your meme!</p>
 
-  <div class="form-container">
-    <form>
-      <input type="text" placeholder="Enter your meme idea...">
-      <button type="submit">Create Your Meme</button>
-    </form>
+  <div class="controls">
+    <input type="file" id="imageUpload" accept="image/*">
+    <input type="file" id="stickerUpload" accept="image/*">
+    <br>
+    <input type="text" id="topText" placeholder="Top text">
+    <input type="text" id="bottomText" placeholder="Bottom text">
+    <br>
+    <button id="downloadBtn">Download Meme</button>
+    <button id="clearBtn">Clear Canvas</button>
   </div>
 
-  <h2>Sample Memes</h2>
-  <div class="samples">
-    <a href="gallery1.html"><img src="sample1.jpg" alt="Sample Meme 1"></a>
-    <a href="gallery2.html"><img src="sample2.jpg" alt="Sample Meme 2"></a>
-    <a href="gallery3.html"><img src="sample3.jpg" alt="Sample Meme 3"></a>
-    <a href="gallery4.html"><img src="sample4.jpg" alt="Sample Meme 4"></a>
-    <a href="gallery5.html"><img src="sample5.jpg" alt="Sample Meme 5"></a>
-    <a href="gallery6.html"><img src="sample6.jpg" alt="Sample Meme 6"></a>
-  </div>
+  <canvas id="memeCanvas" width="500" height="500"></canvas>
+
+  <script>
+    const canvas = document.getElementById("memeCanvas");
+    const ctx = canvas.getContext("2d");
+    const imageUpload = document.getElementById("imageUpload");
+    const stickerUpload = document.getElementById("stickerUpload");
+    const topText = document.getElementById("topText");
+    const bottomText = document.getElementById("bottomText");
+    const clearBtn = document.getElementById("clearBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    let baseImage = null;
+    let stickerImage = null;
+
+    function drawMeme() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (baseImage) {
+        ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
+      }
+
+      if (stickerImage) {
+        ctx.drawImage(stickerImage, 50, 50, 100, 100);
+      }
+
+      ctx.font = "30px Impact";
+      ctx.fillStyle = "white";
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 3;
+      ctx.textAlign = "center";
+
+      if (topText.value) {
+        ctx.fillText(topText.value, canvas.width / 2, 40);
+        ctx.strokeText(topText.value, canvas.width / 2, 40);
+      }
+      if (bottomText.value) {
+        ctx.fillText(bottomText.value, canvas.width / 2, canvas.height - 20);
+        ctx.strokeText(bottomText.value, canvas.width / 2, canvas.height - 20);
+      }
+    }
+
+    imageUpload.addEventListener("change", (e) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        baseImage = new Image();
+        baseImage.src = reader.result;
+        baseImage.onload = drawMeme;
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    });
+
+    stickerUpload.addEventListener("change", (e) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        stickerImage = new Image();
+        stickerImage.src = reader.result;
+        stickerImage.onload = drawMeme;
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    });
+
+    topText.addEventListener("input", drawMeme);
+    bottomText.addEventListener("input", drawMeme);
+
+    clearBtn.addEventListener("click", () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      baseImage = null;
+      stickerImage = null;
+      topText.value = "";
+      bottomText.value = "";
+      imageUpload.value = "";
+      stickerUpload.value = "";
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      const link = document.createElement("a");
+      link.download = "meme.png";
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  </script>
 </body>
 </html>
